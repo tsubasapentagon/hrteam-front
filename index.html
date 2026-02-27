@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>来社受付フォーム</title>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.js"></script>
+  <style>
+    /* （前回の綺麗なCSSデザインそのまま） */
+    body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; background: #f4f7f6; padding: 20px 15px; margin: 0; color: #333; line-height: 1.6; }
+    .card { background: white; max-width: 540px; margin: 0 auto; padding: 30px 25px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+    h3 { text-align: center; color: #1a1a1a; margin-top: 0; margin-bottom: 25px; font-size: 22px; font-weight: 600; }
+    .step { display: none; opacity: 0; transition: opacity 0.4s ease; }
+    .step.active { display: block; opacity: 1; }
+    .field { margin-bottom: 24px; }
+    label.field-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: #4a4a4a; }
+    .required { color: #e53e3e; margin-left: 4px; }
+    input[type="text"] { width: 100%; padding: 14px; border: 1.5px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 16px; transition: border-color 0.2s; background: #fafafa; }
+    input[type="text"]:focus { border-color: #3b82f6; outline: none; background: #fff; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .radio-group { display: flex; flex-wrap: wrap; gap: 10px; }
+    .radio-tile { flex: 1 1 calc(50% - 10px); position: relative; }
+    .radio-tile.full { flex: 1 1 100%; } 
+    .radio-tile input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+    .radio-tile .tile-label { display: flex; align-items: center; justify-content: center; padding: 14px 10px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; color: #4a4a4a; font-size: 15px; font-weight: 500; text-align: center; cursor: pointer; transition: all 0.2s ease; }
+    .radio-tile input[type="radio"]:checked + .tile-label { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+    .btn-primary { width: 100%; padding: 16px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 6px rgba(59,130,246,0.2); margin-top: 10px; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; box-shadow: none; }
+    .btn-secondary { width: 100%; padding: 14px; background: #f3f4f6; color: #4b5563; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-top: 12px; }
+    .desc { font-size: 12px; color: #6b7280; margin-top: 6px; }
+
+    /* モーダルUI */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: 0.3s ease; }
+    .modal-overlay.show { opacity: 1; visibility: visible; }
+    .modal-box { background: white; padding: 30px; border-radius: 16px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transform: translateY(20px); transition: 0.3s ease; }
+    .modal-overlay.show .modal-box { transform: translateY(0); }
+    .modal-icon { font-size: 36px; margin-bottom: 10px; }
+    .modal-title { font-size: 18px; font-weight: bold; color: #1a1a1a; margin-bottom: 10px; }
+    .modal-text { font-size: 14px; color: #4a4a4a; margin-bottom: 25px; line-height: 1.5; }
+    .btn-modal { width: 100%; padding: 14px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
+    .btn-modal.error { background: #e53e3e; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="step1" class="step active">
+      <h3>来社受付</h3>
+      <div class="field">
+        <label class="field-label">該当するものを選択してください<span class="required">*</span></label>
+        <div class="radio-group">
+          <label class="radio-tile full"><input type="radio" name="userType" value="企業様"><span class="tile-label">企業様</span></label>
+          <label class="radio-tile full"><input type="radio" name="userType" value="弊社選考学生"><span class="tile-label">弊社選考学生</span></label>
+          <label class="radio-tile full"><input type="radio" name="userType" value="ジョブコミット利用学生"><span class="tile-label">ジョブコミットご利用の学生（対面面談）</span></label>
+          <label class="radio-tile full"><input type="radio" name="userType" value="その他"><span class="tile-label">上記に該当しない方</span></label>
+        </div>
+      </div>
+      <button type="button" class="btn-primary" onclick="goNext()">次へ進む</button>
+    </div>
+
+    <div id="step2" class="step">
+      <h3>詳細情報</h3>
+      <div style="display: flex; gap: 10px;">
+        <div class="field" style="flex: 1;"><label class="field-label">姓 (カナ)<span class="required">*</span></label><input type="text" id="lastName" placeholder="ヤマダ"></div>
+        <div class="field" style="flex: 1;"><label class="field-label">名 (カナ)<span class="required">*</span></label><input type="text" id="firstName" placeholder="タロウ"></div>
+      </div>
+      <div class="field"><label id="orgLabel" class="field-label">会社名・大学名<span class="required">*</span></label><input type="text" id="org" placeholder="入力してください"></div>
+      <div class="field"><label class="field-label">担当者名<span class="required">*</span></label><input type="text" id="staff-input" placeholder="入力してください"><p id="staff-desc" class="desc"></p></div>
+      <div class="field">
+        <label class="field-label">来社人数<span class="required">*</span></label>
+        <div id="count-radio-wrapper" class="radio-group" style="display:none;">
+          <label class="radio-tile"><input type="radio" name="countRadio" value="1人"><span class="tile-label">1人</span></label>
+          <label class="radio-tile"><input type="radio" name="countRadio" value="2人"><span class="tile-label">2人</span></label>
+          <label class="radio-tile"><input type="radio" name="countRadio" value="3人"><span class="tile-label">3人</span></label>
+          <label class="radio-tile"><input type="radio" name="countRadio" value="4人以上"><span class="tile-label">4人以上</span></label>
+        </div>
+        <div id="count-input-wrapper"><input type="text" id="countInput" placeholder="例：2名"></div>
+      </div>
+      <div class="field">
+        <label class="field-label">要件<span class="required">*</span></label>
+        <div class="radio-group">
+          <label class="radio-tile"><input type="radio" name="reason" value="打ち合わせ"><span class="tile-label">打ち合わせ</span></label>
+          <label class="radio-tile"><input type="radio" name="reason" value="イベント・セミナー"><span class="tile-label">イベント等</span></label>
+          <label class="radio-tile"><input type="radio" name="reason" value="面談"><span class="tile-label">面談</span></label>
+          <label class="radio-tile"><input type="radio" name="reason" value="説明会・面接"><span class="tile-label">説明会・面接</span></label>
+          <label class="radio-tile full"><input type="radio" name="reason" value="その他"><span class="tile-label">その他</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">ご利用サービス<span class="required">*</span></label>
+        <div class="radio-group">
+          <label class="radio-tile"><input type="radio" name="service" value="ジョブコミット"><span class="tile-label">ジョブコミット</span></label>
+          <label class="radio-tile"><input type="radio" name="service" value="ジョブハント"><span class="tile-label">ジョブハント</span></label>
+          <label class="radio-tile"><input type="radio" name="service" value="就活ネオ"><span class="tile-label">就活ネオ</span></label>
+          <label class="radio-tile"><input type="radio" name="service" value="ファーストジョブズ"><span class="tile-label">ファーストジョブズ</span></label>
+          <label class="radio-tile"><input type="radio" name="service" value="アゲルキャリア"><span class="tile-label">アゲルキャリア</span></label>
+          <label class="radio-tile"><input type="radio" name="service" value="その他"><span class="tile-label">その他</span></label>
+        </div>
+      </div>
+      <button id="submitBtn" type="button" class="btn-primary" onclick="sendData()">送信する</button>
+      <button type="button" class="btn-secondary" onclick="resetForm()">最初からやり直す</button>
+    </div>
+  </div>
+
+  <div id="customModal" class="modal-overlay">
+    <div class="modal-box">
+      <div id="modalIcon" class="modal-icon">⚠️</div>
+      <div id="modalTitle" class="modal-title">エラー</div>
+      <div id="modalText" class="modal-text">メッセージ</div>
+      <button id="modalBtn" class="btn-modal" onclick="closeModal()">閉じる</button>
+    </div>
+  </div>
+
+  <script>
+    // ★★★ 以下のURLを、さっきデプロイした最新のGASのURLに書き換えてください ★★★
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxbaZ4dhlXlijom5qHBvB5JE8VzUEMUHmF5HUqjjqoVRDR_Ei2PReDABbmevVkeiAFi/exec";
+
+    let isJC = false;
+    let staffListData = [];
+
+    // 画面を開いた瞬間に、裏側でGASから担当者リストを取ってきておく（爆速化の秘訣！）
+    fetch(GAS_URL)
+      .then(res => res.json())
+      .then(data => { staffListData = data; })
+      .catch(err => console.error("リスト取得エラー:", err));
+
+    function showModal(type, title, text) {
+      const overlay = document.getElementById('customModal');
+      const btn = document.getElementById('modalBtn');
+      document.getElementById('modalTitle').innerText = title;
+      document.getElementById('modalText').innerText = text;
+
+      if (type === 'error') {
+        document.getElementById('modalIcon').innerText = "⚠️";
+        btn.innerText = "入力に戻る";
+        btn.className = "btn-modal error";
+        btn.onclick = () => overlay.classList.remove('show');
+      } else {
+        document.getElementById('modalIcon').innerText = "✅";
+        btn.innerText = "OK";
+        btn.className = "btn-modal";
+        btn.onclick = () => { overlay.classList.remove('show'); window.scrollTo(0,0); resetForm(); };
+      }
+      overlay.classList.add('show');
+    }
+
+    function closeModal() { document.getElementById('customModal').classList.remove('show'); }
+
+    function resetForm() {
+      document.querySelectorAll('input[type="text"]').forEach(el => el.value = '');
+      document.querySelectorAll('input[type="radio"]').forEach(el => el.checked = false);
+      const btn = document.getElementById('submitBtn');
+      btn.innerText = "送信する";
+      btn.disabled = false;
+      document.getElementById('step2').classList.remove('active');
+      document.getElementById('step1').classList.add('active');
+    }
+
+    function goNext() {
+      const typeNode = document.querySelector('input[name="userType"]:checked');
+      if(!typeNode) return showModal('error', '未選択', '該当する項目を選択してください。');
+      isJC = (typeNode.value === "ジョブコミット利用学生");
+      
+      document.getElementById('step1').classList.remove('active');
+      document.getElementById('step2').classList.add('active');
+
+      if(isJC) {
+        document.getElementById('orgLabel').innerHTML = '大学名<span class="required">*</span>';
+        document.getElementById('staff-desc').innerText = "※かな・漢字検索対応。1文字入力すると候補が出ます。";
+        document.getElementById('staff-input').placeholder = "例：あかひら";
+        document.getElementById('count-radio-wrapper').style.display = "flex";
+        document.getElementById('count-input-wrapper').style.display = "none";
+        
+        // 事前に取得しておいたリストを使ってオートコンプリート起動
+        $("#staff-input").autocomplete({
+          source: function(request, response) {
+            const term = request.term.toLowerCase();
+            const matches = staffListData.filter(item => item.search.includes(term));
+            response(matches.map(item => item.label));
+          },
+          minLength: 1
+        });
+      } else {
+        document.getElementById('orgLabel').innerHTML = '会社名・大学名<span class="required">*</span>';
+        document.getElementById('staff-desc').innerText = "※担当者名をフルネームでご記入ください。";
+        document.getElementById('staff-input').placeholder = "例：山田 太郎";
+        document.getElementById('count-radio-wrapper').style.display = "none";
+        document.getElementById('count-input-wrapper').style.display = "block";
+        if ($("#staff-input").data('ui-autocomplete')) $("#staff-input").autocomplete("destroy");
+      }
+    }
+
+    function sendData() {
+      let countVal = isJC ? (document.querySelector('input[name="countRadio"]:checked')?.value || "") : document.getElementById('countInput').value;
+      const reasonNode = document.querySelector('input[name="reason"]:checked');
+      const serviceNode = document.querySelector('input[name="service"]:checked');
+
+      const data = {
+        userType: document.querySelector('input[name="userType"]:checked').value,
+        lastName: document.getElementById('lastName').value,
+        firstName: document.getElementById('firstName').value,
+        org: document.getElementById('org').value,
+        staff: document.getElementById('staff-input').value,
+        count: countVal,
+        reason: reasonNode ? reasonNode.value : "",
+        service: serviceNode ? serviceNode.value : ""
+      };
+      
+      if(!data.lastName || !data.firstName || !data.org || !data.staff || !data.count || !data.reason || !data.service) { 
+        return showModal('error', '入力エラー', '未入力、または未選択の項目があります。');
+      }
+      
+      const btn = document.getElementById('submitBtn');
+      btn.innerText = "送信中...";
+      btn.disabled = true;
+      
+      // Vercel(フロント)からGAS(裏方)へデータを飛ばす（CORS回避のためtext/plainで送信）
+      fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(result => {
+        if(result.status === "success") {
+          showModal('success', '送信完了', result.message);
+        } else {
+          showModal('error', 'エラー', result.message);
+          btn.innerText = "送信する"; btn.disabled = false;
+        }
+      })
+      .catch(err => {
+        showModal('error', '通信エラー', '送信に失敗しました。電波の良い所で再度お試しください。');
+        btn.innerText = "送信する"; btn.disabled = false;
+      });
+    }
+  </script>
+</body>
+</html>
