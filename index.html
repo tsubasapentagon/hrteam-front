@@ -8,7 +8,6 @@
   <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
   <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.js"></script>
   <style>
-    /* （前回の綺麗なCSSデザインそのまま） */
     body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; background: #f4f7f6; padding: 20px 15px; margin: 0; color: #333; line-height: 1.6; }
     .card { background: white; max-width: 540px; margin: 0 auto; padding: 30px 25px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
     h3 { text-align: center; color: #1a1a1a; margin-top: 0; margin-bottom: 25px; font-size: 22px; font-weight: 600; }
@@ -41,6 +40,9 @@
     .modal-text { font-size: 14px; color: #4a4a4a; margin-bottom: 25px; line-height: 1.5; }
     .btn-modal { width: 100%; padding: 14px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
     .btn-modal.error { background: #e53e3e; }
+    
+    /* 検索に戻るボタン */
+    .back-search-btn { display: none; background: none; border: none; color: #3b82f6; cursor: pointer; font-size: 13px; padding: 0; margin-top: 8px; text-decoration: underline; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -65,8 +67,16 @@
         <div class="field" style="flex: 1;"><label class="field-label">姓 (カナ)<span class="required">*</span></label><input type="text" id="lastName" placeholder="ヤマダ"></div>
         <div class="field" style="flex: 1;"><label class="field-label">名 (カナ)<span class="required">*</span></label><input type="text" id="firstName" placeholder="タロウ"></div>
       </div>
+      
       <div class="field"><label id="orgLabel" class="field-label">会社名・大学名<span class="required">*</span></label><input type="text" id="org" placeholder="入力してください"></div>
-      <div class="field"><label class="field-label">担当者名<span class="required">*</span></label><input type="text" id="staff-input" placeholder="入力してください"><p id="staff-desc" class="desc"></p></div>
+      
+      <div class="field">
+        <label class="field-label">担当者名<span class="required">*</span></label>
+        <input type="text" id="staff-input" placeholder="入力してください">
+        <p id="staff-desc" class="desc"></p>
+        <button type="button" id="back-to-search-btn" class="back-search-btn" onclick="enableAutocomplete(true)">リストから検索する方式に戻す</button>
+      </div>
+
       <div class="field">
         <label class="field-label">来社人数<span class="required">*</span></label>
         <div id="count-radio-wrapper" class="radio-group" style="display:none;">
@@ -113,13 +123,13 @@
   </div>
 
   <script>
-    // ★★★ 以下のURLを、さっきデプロイした最新のGASのURLに書き換えてください ★★★
+    // ★★★ 以下のURLを、GASのURLに書き換えてください ★★★
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxbaZ4dhlXlijom5qHBvB5JE8VzUEMUHmF5HUqjjqoVRDR_Ei2PReDABbmevVkeiAFi/exec";
 
     let isJC = false;
     let staffListData = [];
 
-    // 画面を開いた瞬間に、裏側でGASから担当者リストを取ってきておく（爆速化の秘訣！）
+    // スプシから担当者リストを先読み
     fetch(GAS_URL)
       .then(res => res.json())
       .then(data => { staffListData = data; })
@@ -150,11 +160,55 @@
     function resetForm() {
       document.querySelectorAll('input[type="text"]').forEach(el => el.value = '');
       document.querySelectorAll('input[type="radio"]').forEach(el => el.checked = false);
+      document.getElementById('back-to-search-btn').style.display = 'none';
       const btn = document.getElementById('submitBtn');
       btn.innerText = "送信する";
       btn.disabled = false;
       document.getElementById('step2').classList.remove('active');
       document.getElementById('step1').classList.add('active');
+    }
+
+    // ★ オートコンプリートを有効にする関数（見つからない対応入り）
+    function enableAutocomplete(clearText = false) {
+      const staffInput = document.getElementById('staff-input');
+      const staffDesc = document.getElementById('staff-desc');
+      const backBtn = document.getElementById('back-to-search-btn');
+
+      staffDesc.innerText = "※かな・漢字検索対応。1文字入力すると候補が出ます。";
+      staffInput.placeholder = "例：あかひら";
+      backBtn.style.display = "none";
+      if(clearText) staffInput.value = "";
+      
+      // 一度リセット
+      if ($(staffInput).data('ui-autocomplete')) {
+        $(staffInput).autocomplete("destroy");
+      }
+
+      $(staffInput).autocomplete({
+        source: function(request, response) {
+          const term = request.term.toLowerCase();
+          const matches = staffListData.filter(item => item.search.includes(term));
+          const results = matches.map(item => item.label);
+          
+          // ★ 検索結果の最後に「見つからない」を必ず追加する
+          results.push("【担当者が見つからない（手動で入力する）】");
+          response(results);
+        },
+        minLength: 1,
+        select: function(event, ui) {
+          // 「見つからない」を選んだ時の処理
+          if (ui.item.value === "【担当者が見つからない（手動で入力する）】") {
+            event.preventDefault(); // この長いテキストが入力欄に入るのを防ぐ
+            
+            // オートコンプリートを解除して手動入力モードにする
+            $(staffInput).autocomplete("destroy");
+            staffInput.value = "";
+            staffInput.placeholder = "例：山田 太郎";
+            staffDesc.innerText = "※担当者のフルネームを手動でご記入ください。";
+            backBtn.style.display = "inline-block"; // 戻るボタンを表示
+          }
+        }
+      });
     }
 
     function goNext() {
@@ -167,24 +221,17 @@
 
       if(isJC) {
         document.getElementById('orgLabel').innerHTML = '大学名<span class="required">*</span>';
-        document.getElementById('staff-desc').innerText = "※かな・漢字検索対応。1文字入力すると候補が出ます。";
-        document.getElementById('staff-input').placeholder = "例：あかひら";
         document.getElementById('count-radio-wrapper').style.display = "flex";
         document.getElementById('count-input-wrapper').style.display = "none";
         
-        // 事前に取得しておいたリストを使ってオートコンプリート起動
-        $("#staff-input").autocomplete({
-          source: function(request, response) {
-            const term = request.term.toLowerCase();
-            const matches = staffListData.filter(item => item.search.includes(term));
-            response(matches.map(item => item.label));
-          },
-          minLength: 1
-        });
+        // オートコンプリート起動（上で作った関数を呼び出す）
+        enableAutocomplete(false);
+        
       } else {
         document.getElementById('orgLabel').innerHTML = '会社名・大学名<span class="required">*</span>';
         document.getElementById('staff-desc').innerText = "※担当者名をフルネームでご記入ください。";
         document.getElementById('staff-input').placeholder = "例：山田 太郎";
+        document.getElementById('back-to-search-btn').style.display = "none";
         document.getElementById('count-radio-wrapper').style.display = "none";
         document.getElementById('count-input-wrapper').style.display = "block";
         if ($("#staff-input").data('ui-autocomplete')) $("#staff-input").autocomplete("destroy");
@@ -215,7 +262,6 @@
       btn.innerText = "送信中...";
       btn.disabled = true;
       
-      // Vercel(フロント)からGAS(裏方)へデータを飛ばす（CORS回避のためtext/plainで送信）
       fetch(GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
