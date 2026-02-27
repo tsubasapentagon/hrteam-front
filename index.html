@@ -74,7 +74,7 @@
         <label class="field-label">担当者名<span class="required">*</span></label>
         <input type="text" id="staff-input" placeholder="入力してください">
         <p id="staff-desc" class="desc"></p>
-        <button type="button" id="back-to-search-btn" class="back-search-btn" onclick="enableAutocomplete(true)">リストから検索する方式に戻す</button>
+        <button type="button" id="back-to-search-btn" class="back-search-btn" onclick="enableAutocomplete(true)">🔍 リストから検索する方式に戻す</button>
       </div>
 
       <div class="field">
@@ -128,6 +128,8 @@
 
     let isJC = false;
     let staffListData = [];
+    // ★追加：現在「手動入力モード」になっているかどうかを判定するフラグ
+    let isManualStaffInput = false;
 
     // スプシから担当者リストを先読み
     fetch(GAS_URL)
@@ -164,22 +166,24 @@
       const btn = document.getElementById('submitBtn');
       btn.innerText = "送信する";
       btn.disabled = false;
+      isManualStaffInput = false; // フラグもリセット
       document.getElementById('step2').classList.remove('active');
       document.getElementById('step1').classList.add('active');
     }
 
-    // ★ オートコンプリートを有効にする関数（見つからない対応入り）
+    // オートコンプリートを有効にする関数
     function enableAutocomplete(clearText = false) {
       const staffInput = document.getElementById('staff-input');
       const staffDesc = document.getElementById('staff-desc');
       const backBtn = document.getElementById('back-to-search-btn');
+
+      isManualStaffInput = false; // 検索モードに戻るのでフラグをOFF
 
       staffDesc.innerText = "※かな・漢字検索対応。1文字入力すると候補が出ます。";
       staffInput.placeholder = "例：あかひら";
       backBtn.style.display = "none";
       if(clearText) staffInput.value = "";
       
-      // 一度リセット
       if ($(staffInput).data('ui-autocomplete')) {
         $(staffInput).autocomplete("destroy");
       }
@@ -190,22 +194,20 @@
           const matches = staffListData.filter(item => item.search.includes(term));
           const results = matches.map(item => item.label);
           
-          // ★ 検索結果の最後に「見つからない」を必ず追加する
           results.push("【担当者が見つからない（手動で入力する）】");
           response(results);
         },
         minLength: 1,
         select: function(event, ui) {
-          // 「見つからない」を選んだ時の処理
           if (ui.item.value === "【担当者が見つからない（手動で入力する）】") {
-            event.preventDefault(); // この長いテキストが入力欄に入るのを防ぐ
+            event.preventDefault(); 
+            isManualStaffInput = true; // 手動入力モードON
             
-            // オートコンプリートを解除して手動入力モードにする
             $(staffInput).autocomplete("destroy");
             staffInput.value = "";
             staffInput.placeholder = "例：山田 太郎";
             staffDesc.innerText = "※担当者のフルネームを手動でご記入ください。";
-            backBtn.style.display = "inline-block"; // 戻るボタンを表示
+            backBtn.style.display = "inline-block"; 
           }
         }
       });
@@ -223,10 +225,7 @@
         document.getElementById('orgLabel').innerHTML = '大学名<span class="required">*</span>';
         document.getElementById('count-radio-wrapper').style.display = "flex";
         document.getElementById('count-input-wrapper').style.display = "none";
-        
-        // オートコンプリート起動（上で作った関数を呼び出す）
         enableAutocomplete(false);
-        
       } else {
         document.getElementById('orgLabel').innerHTML = '会社名・大学名<span class="required">*</span>';
         document.getElementById('staff-desc').innerText = "※担当者名をフルネームでご記入ください。";
@@ -234,6 +233,7 @@
         document.getElementById('back-to-search-btn').style.display = "none";
         document.getElementById('count-radio-wrapper').style.display = "none";
         document.getElementById('count-input-wrapper').style.display = "block";
+        isManualStaffInput = true; // JC以外はそもそも手動入力扱い
         if ($("#staff-input").data('ui-autocomplete')) $("#staff-input").autocomplete("destroy");
       }
     }
@@ -254,8 +254,17 @@
         service: serviceNode ? serviceNode.value : ""
       };
       
+      // 空欄のチェック
       if(!data.lastName || !data.firstName || !data.org || !data.staff || !data.count || !data.reason || !data.service) { 
         return showModal('error', '入力エラー', '未入力、または未選択の項目があります。');
+      }
+
+      // ★追加：ジョブコミット利用学生で「手動入力モード」になっていない場合、リストの名前と完全一致するかチェック
+      if (isJC && !isManualStaffInput) {
+        const isValidStaff = staffListData.some(item => item.label === data.staff);
+        if (!isValidStaff) {
+          return showModal('error', '担当者の選択エラー', '担当者名が候補リストから正しく選択されていません。候補をタップして選ぶか、リストの一番下にある「見つからない」を押して手動入力に切り替えてください。');
+        }
       }
       
       const btn = document.getElementById('submitBtn');
