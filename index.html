@@ -13,22 +13,30 @@
     h3 { text-align: center; color: #1a1a1a; margin-top: 0; margin-bottom: 25px; font-size: 22px; font-weight: 600; }
     .step { display: none; opacity: 0; transition: opacity 0.4s ease; }
     .step.active { display: block; opacity: 1; }
-    .field { margin-bottom: 24px; }
+    .field { margin-bottom: 24px; position: relative; }
     label.field-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: #4a4a4a; }
     .required { color: #e53e3e; margin-left: 4px; }
     input[type="text"] { width: 100%; padding: 14px; border: 1.5px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 16px; transition: border-color 0.2s; background: #fafafa; }
     input[type="text"]:focus { border-color: #3b82f6; outline: none; background: #fff; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    
     .radio-group { display: flex; flex-wrap: wrap; gap: 10px; }
     .radio-tile { flex: 1 1 calc(50% - 10px); position: relative; }
     .radio-tile.full { flex: 1 1 100%; } 
     .radio-tile input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
     .radio-tile .tile-label { display: flex; align-items: center; justify-content: center; padding: 14px 10px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; color: #4a4a4a; font-size: 15px; font-weight: 500; text-align: center; cursor: pointer; transition: all 0.2s ease; }
     .radio-tile input[type="radio"]:checked + .tile-label { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+    
     .btn-primary { width: 100%; padding: 16px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 6px rgba(59,130,246,0.2); margin-top: 10px; }
     .btn-primary:hover { background: #2563eb; }
     .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; box-shadow: none; }
     .btn-secondary { width: 100%; padding: 14px; background: #f3f4f6; color: #4b5563; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-top: 12px; }
     .desc { font-size: 12px; color: #6b7280; margin-top: 6px; }
+
+    /* ★ エラー時のハイライトデザイン ★ */
+    .error-input { border-color: #e53e3e !important; background-color: #fff5f5 !important; }
+    .radio-group.error-input { padding: 10px; border: 1.5px dashed #e53e3e !important; border-radius: 12px; }
+    .error-text { color: #e53e3e; font-size: 12px; margin-top: 6px; font-weight: bold; display: flex; align-items: center; }
+    .error-text::before { content: "⚠️"; margin-right: 4px; font-size: 14px; }
 
     /* モーダルUI */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: 0.3s ease; }
@@ -41,7 +49,6 @@
     .btn-modal { width: 100%; padding: 14px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
     .btn-modal.error { background: #e53e3e; }
     
-    /* 検索に戻るボタン */
     .back-search-btn { display: none; background: none; border: none; color: #3b82f6; cursor: pointer; font-size: 13px; padding: 0; margin-top: 8px; text-decoration: underline; font-weight: bold; }
   </style>
 </head>
@@ -51,7 +58,7 @@
       <h3>来社受付</h3>
       <div class="field">
         <label class="field-label">該当するものを選択してください<span class="required">*</span></label>
-        <div class="radio-group">
+        <div class="radio-group" id="userType-group">
           <label class="radio-tile full"><input type="radio" name="userType" value="企業様"><span class="tile-label">企業様</span></label>
           <label class="radio-tile full"><input type="radio" name="userType" value="弊社選考学生"><span class="tile-label">弊社選考学生</span></label>
           <label class="radio-tile full"><input type="radio" name="userType" value="ジョブコミット利用学生"><span class="tile-label">ジョブコミットご利用の学生（対面面談）</span></label>
@@ -64,32 +71,44 @@
     <div id="step2" class="step">
       <h3>詳細情報</h3>
       <div style="display: flex; gap: 10px;">
-        <div class="field" style="flex: 1;"><label class="field-label">姓 (カナ)<span class="required">*</span></label><input type="text" id="lastName" placeholder="ヤマダ"></div>
-        <div class="field" style="flex: 1;"><label class="field-label">名 (カナ)<span class="required">*</span></label><input type="text" id="firstName" placeholder="タロウ"></div>
+        <div class="field" style="flex: 1;">
+          <label class="field-label">姓 (カナ)<span class="required">*</span></label>
+          <input type="text" id="lastName" placeholder="ヤマダ" oninput="clearError(this)">
+        </div>
+        <div class="field" style="flex: 1;">
+          <label class="field-label">名 (カナ)<span class="required">*</span></label>
+          <input type="text" id="firstName" placeholder="タロウ" oninput="clearError(this)">
+        </div>
       </div>
       
-      <div class="field"><label id="orgLabel" class="field-label">会社名・大学名<span class="required">*</span></label><input type="text" id="org" placeholder="入力してください"></div>
+      <div class="field">
+        <label id="orgLabel" class="field-label">会社名・大学名<span class="required">*</span></label>
+        <input type="text" id="org" placeholder="入力してください" oninput="clearError(this)">
+      </div>
       
       <div class="field">
         <label class="field-label">担当者名<span class="required">*</span></label>
-        <input type="text" id="staff-input" placeholder="入力してください">
+        <input type="text" id="staff-input" placeholder="入力してください" oninput="clearError(this)">
         <p id="staff-desc" class="desc"></p>
         <button type="button" id="back-to-search-btn" class="back-search-btn" onclick="enableAutocomplete(true)">🔍 リストから検索する方式に戻す</button>
       </div>
 
       <div class="field">
         <label class="field-label">来社人数<span class="required">*</span></label>
-        <div id="count-radio-wrapper" class="radio-group" style="display:none;">
+        <div id="count-radio-wrapper" class="radio-group" style="display:none;" onchange="clearError(this)">
           <label class="radio-tile"><input type="radio" name="countRadio" value="1人"><span class="tile-label">1人</span></label>
           <label class="radio-tile"><input type="radio" name="countRadio" value="2人"><span class="tile-label">2人</span></label>
           <label class="radio-tile"><input type="radio" name="countRadio" value="3人"><span class="tile-label">3人</span></label>
           <label class="radio-tile"><input type="radio" name="countRadio" value="4人以上"><span class="tile-label">4人以上</span></label>
         </div>
-        <div id="count-input-wrapper"><input type="text" id="countInput" placeholder="例：2名"></div>
+        <div id="count-input-wrapper">
+          <input type="text" id="countInput" placeholder="例：2名" oninput="clearError(this)">
+        </div>
       </div>
+      
       <div class="field">
         <label class="field-label">要件<span class="required">*</span></label>
-        <div class="radio-group">
+        <div class="radio-group" id="reason-group" onchange="clearError(this)">
           <label class="radio-tile"><input type="radio" name="reason" value="打ち合わせ"><span class="tile-label">打ち合わせ</span></label>
           <label class="radio-tile"><input type="radio" name="reason" value="イベント・セミナー"><span class="tile-label">イベント等</span></label>
           <label class="radio-tile"><input type="radio" name="reason" value="面談"><span class="tile-label">面談</span></label>
@@ -97,9 +116,10 @@
           <label class="radio-tile full"><input type="radio" name="reason" value="その他"><span class="tile-label">その他</span></label>
         </div>
       </div>
+      
       <div class="field">
         <label class="field-label">ご利用サービス<span class="required">*</span></label>
-        <div class="radio-group">
+        <div class="radio-group" id="service-group" onchange="clearError(this)">
           <label class="radio-tile"><input type="radio" name="service" value="ジョブコミット"><span class="tile-label">ジョブコミット</span></label>
           <label class="radio-tile"><input type="radio" name="service" value="ジョブハント"><span class="tile-label">ジョブハント</span></label>
           <label class="radio-tile"><input type="radio" name="service" value="就活ネオ"><span class="tile-label">就活ネオ</span></label>
@@ -108,6 +128,7 @@
           <label class="radio-tile"><input type="radio" name="service" value="その他"><span class="tile-label">その他</span></label>
         </div>
       </div>
+      
       <button id="submitBtn" type="button" class="btn-primary" onclick="sendData()">送信する</button>
       <button type="button" class="btn-secondary" onclick="resetForm()">最初からやり直す</button>
     </div>
@@ -123,12 +144,11 @@
   </div>
 
   <script>
-    // ★★★ 以下のURLを、GASのURLに書き換えてください ★★★
+    // URL設定済み！
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxbaZ4dhlXlijom5qHBvB5JE8VzUEMUHmF5HUqjjqoVRDR_Ei2PReDABbmevVkeiAFi/exec";
 
     let isJC = false;
     let staffListData = [];
-    // ★追加：現在「手動入力モード」になっているかどうかを判定するフラグ
     let isManualStaffInput = false;
 
     // スプシから担当者リストを先読み
@@ -159,6 +179,35 @@
 
     function closeModal() { document.getElementById('customModal').classList.remove('show'); }
 
+    // ★ ユーザーが入力・選択し直した時にエラーを消す関数
+    function clearError(element) {
+      element.classList.remove('error-input');
+      const parent = element.closest('.field');
+      const errorMsg = parent.querySelector('.error-text');
+      if (errorMsg) errorMsg.remove();
+    }
+
+    // ★ エラーを表示する関数
+    function showError(element, message) {
+      element.classList.add('error-input');
+      const parent = element.closest('.field');
+      
+      // 既にエラーメッセージがあれば消す（重複防止）
+      const existingMsg = parent.querySelector('.error-text');
+      if (existingMsg) existingMsg.remove();
+      
+      const errorSpan = document.createElement('div');
+      errorSpan.className = 'error-text';
+      errorSpan.innerText = message;
+      parent.appendChild(errorSpan);
+    }
+
+    // ★ すべてのエラー表示をリセットする関数
+    function resetAllErrors() {
+      document.querySelectorAll('.error-input').forEach(el => el.classList.remove('error-input'));
+      document.querySelectorAll('.error-text').forEach(el => el.remove());
+    }
+
     function resetForm() {
       document.querySelectorAll('input[type="text"]').forEach(el => el.value = '');
       document.querySelectorAll('input[type="radio"]').forEach(el => el.checked = false);
@@ -166,18 +215,19 @@
       const btn = document.getElementById('submitBtn');
       btn.innerText = "送信する";
       btn.disabled = false;
-      isManualStaffInput = false; // フラグもリセット
+      isManualStaffInput = false; 
+      resetAllErrors();
       document.getElementById('step2').classList.remove('active');
       document.getElementById('step1').classList.add('active');
     }
 
-    // オートコンプリートを有効にする関数
     function enableAutocomplete(clearText = false) {
       const staffInput = document.getElementById('staff-input');
       const staffDesc = document.getElementById('staff-desc');
       const backBtn = document.getElementById('back-to-search-btn');
-
-      isManualStaffInput = false; // 検索モードに戻るのでフラグをOFF
+      
+      clearError(staffInput); // エラー状態なら消す
+      isManualStaffInput = false; 
 
       staffDesc.innerText = "※かな・漢字検索対応。1文字入力すると候補が出ます。";
       staffInput.placeholder = "例：あかひら";
@@ -193,7 +243,6 @@
           const term = request.term.toLowerCase();
           const matches = staffListData.filter(item => item.search.includes(term));
           const results = matches.map(item => item.label);
-          
           results.push("【担当者が見つからない（手動で入力する）】");
           response(results);
         },
@@ -201,21 +250,29 @@
         select: function(event, ui) {
           if (ui.item.value === "【担当者が見つからない（手動で入力する）】") {
             event.preventDefault(); 
-            isManualStaffInput = true; // 手動入力モードON
+            isManualStaffInput = true; 
             
             $(staffInput).autocomplete("destroy");
             staffInput.value = "";
             staffInput.placeholder = "例：山田 太郎";
             staffDesc.innerText = "※担当者のフルネームを手動でご記入ください。";
             backBtn.style.display = "inline-block"; 
+          } else {
+            // 正しい候補を選んだらエラーを消す
+            clearError(staffInput);
           }
         }
       });
     }
 
     function goNext() {
+      resetAllErrors(); // ステップ移動時にエラーリセット
       const typeNode = document.querySelector('input[name="userType"]:checked');
-      if(!typeNode) return showModal('error', '未選択', '該当する項目を選択してください。');
+      if(!typeNode) {
+        showError(document.getElementById('userType-group'), '該当するものを選択してください。');
+        return showModal('error', '未選択', '該当する項目を選択してください。');
+      }
+      
       isJC = (typeNode.value === "ジョブコミット利用学生");
       
       document.getElementById('step1').classList.remove('active');
@@ -228,44 +285,84 @@
         enableAutocomplete(false);
       } else {
         document.getElementById('orgLabel').innerHTML = '会社名・大学名<span class="required">*</span>';
-        document.getElementById('staff-desc').innerText = "※担当者名をフルネームでご記入ください。";
+        document.getElementById('staff-desc').innerText = "※担当者名をご記入ください。";
         document.getElementById('staff-input').placeholder = "例：山田 太郎";
         document.getElementById('back-to-search-btn').style.display = "none";
         document.getElementById('count-radio-wrapper').style.display = "none";
         document.getElementById('count-input-wrapper').style.display = "block";
-        isManualStaffInput = true; // JC以外はそもそも手動入力扱い
+        isManualStaffInput = true; 
         if ($("#staff-input").data('ui-autocomplete')) $("#staff-input").autocomplete("destroy");
       }
     }
 
     function sendData() {
-      let countVal = isJC ? (document.querySelector('input[name="countRadio"]:checked')?.value || "") : document.getElementById('countInput').value;
-      const reasonNode = document.querySelector('input[name="reason"]:checked');
-      const serviceNode = document.querySelector('input[name="service"]:checked');
+      resetAllErrors(); // 一度エラー表示を全部リセット
+      let hasError = false;
 
-      const data = {
-        userType: document.querySelector('input[name="userType"]:checked').value,
-        lastName: document.getElementById('lastName').value,
-        firstName: document.getElementById('firstName').value,
-        org: document.getElementById('org').value,
-        staff: document.getElementById('staff-input').value,
-        count: countVal,
-        reason: reasonNode ? reasonNode.value : "",
-        service: serviceNode ? serviceNode.value : ""
-      };
-      
-      // 空欄のチェック
-      if(!data.lastName || !data.firstName || !data.org || !data.staff || !data.count || !data.reason || !data.service) { 
-        return showModal('error', '入力エラー', '未入力、または未選択の項目があります。');
-      }
+      // 1. 姓・名・所属のチェック
+      const lastNameEl = document.getElementById('lastName');
+      const firstNameEl = document.getElementById('firstName');
+      const orgEl = document.getElementById('org');
+      const staffEl = document.getElementById('staff-input');
 
-      // ★追加：ジョブコミット利用学生で「手動入力モード」になっていない場合、リストの名前と完全一致するかチェック
-      if (isJC && !isManualStaffInput) {
-        const isValidStaff = staffListData.some(item => item.label === data.staff);
+      if (!lastNameEl.value.trim()) { showError(lastNameEl, '姓を入力してください。'); hasError = true; }
+      if (!firstNameEl.value.trim()) { showError(firstNameEl, '名を入力してください。'); hasError = true; }
+      if (!orgEl.value.trim()) { showError(orgEl, isJC ? '大学名を入力してください。' : '会社名・大学名を入力してください。'); hasError = true; }
+
+      // 2. 担当者のチェック
+      if (!staffEl.value.trim()) {
+        showError(staffEl, '担当者名を入力・選択してください。');
+        hasError = true;
+      } else if (isJC && !isManualStaffInput) {
+        // ジョブコミット利用学生で手動入力でない場合、リストと一致するかチェック
+        const isValidStaff = staffListData.some(item => item.label === staffEl.value);
         if (!isValidStaff) {
-          return showModal('error', '担当者の選択エラー', '担当者名が候補リストから正しく選択されていません。候補をタップして選ぶか、リストの一番下にある「見つからない」を押して手動入力に切り替えてください。');
+          showError(staffEl, '候補をタップして選択するか、「見つからない」を押して入力してください。');
+          hasError = true;
         }
       }
+
+      // 3. 来社人数のチェック
+      let countVal = "";
+      if (isJC) {
+        const countNode = document.querySelector('input[name="countRadio"]:checked');
+        if (countNode) { countVal = countNode.value; } 
+        else { showError(document.getElementById('count-radio-wrapper'), '来社人数を選択してください。'); hasError = true; }
+      } else {
+        const countInputEl = document.getElementById('countInput');
+        if (!countInputEl.value.trim()) { showError(countInputEl, '来社人数を入力してください。'); hasError = true; }
+        else { countVal = countInputEl.value.trim(); }
+      }
+
+      // 4. 要件・サービスのチェック
+      const reasonNode = document.querySelector('input[name="reason"]:checked');
+      if (!reasonNode) { showError(document.getElementById('reason-group'), '要件を選択してください。'); hasError = true; }
+
+      const serviceNode = document.querySelector('input[name="service"]:checked');
+      if (!serviceNode) { showError(document.getElementById('service-group'), 'ご利用サービスを選択してください。'); hasError = true; }
+
+      // エラーが1つでもあった場合の処理
+      if (hasError) {
+        // 画面の最初のエラー項目まで自動でスクロールする
+        const firstError = document.querySelector('.error-input');
+        if (firstError) {
+          firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        showModal('error', '入力エラー', '赤くハイライトされた項目を確認してください。');
+        return;
+      }
+
+      // ここから送信処理
+      const data = {
+        userType: document.querySelector('input[name="userType"]:checked').value,
+        lastName: lastNameEl.value,
+        firstName: firstNameEl.value,
+        org: orgEl.value,
+        staff: staffEl.value,
+        count: countVal,
+        reason: reasonNode.value,
+        service: serviceNode.value
+      };
       
       const btn = document.getElementById('submitBtn');
       btn.innerText = "送信中...";
